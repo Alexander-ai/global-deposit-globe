@@ -15,7 +15,6 @@ import re
 import sys
 import time
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent))
@@ -24,8 +23,21 @@ from schema import CACHE, ROOT  # noqa: E402
 
 _UA = "Mozilla/5.0 (deposit-globe data pipeline; +https://github.com/Alexander-ai/global-deposit-globe)"
 _PAIR = re.compile(r"(-?\d{1,2}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})")
+# DMS fallback: "6&deg; 58' 48&quot;S, 78&deg; 30' 44&quot;W" (seconds optional).
+_DEG = r"(?:&deg;|°)"
+_DMS = re.compile(
+    rf"(\d{{1,3}})\s*{_DEG}\s*(\d{{1,2}})\s*['’]\s*([\d.]+)?\s*(?:[\"”]|&quot;)?\s*([NSEW])"
+    rf"\s*,\s*"
+    rf"(\d{{1,3}})\s*{_DEG}\s*(\d{{1,2}})\s*['’]\s*([\d.]+)?\s*(?:[\"”]|&quot;)?\s*([NSEW])",
+    re.I,
+)
 _PAGES = CACHE / "portergeo_pages"
 OUT = ROOT / "scripts" / "portergeo_index.json"
+
+
+def _dms(d, m, s, hemi) -> float:
+    val = int(d) + int(m) / 60 + (float(s) if s else 0) / 3600
+    return round(-val if hemi.upper() in ("S", "W") else val, 5)
 
 
 def _fetch(mineid: str) -> Path:
@@ -48,11 +60,24 @@ def _fetch(mineid: str) -> Path:
     raise last or RuntimeError("empty")
 
 
+def _valid(la, lo, out) -> bool:
+    return -90 <= la <= 90 and -180 <= lo <= 180 and (la, lo) not in out and (la or lo)
+
+
 def _coords(page: str, cap: int = 4) -> list[tuple[float, float]]:
     out: list[tuple[float, float]] = []
-    for la, lo in _PAIR.findall(page):
+    for la, lo in _PAIR.findall(page):  # decimal degrees (most precise) first
         la, lo = round(float(la), 5), round(float(lo), 5)
-        if -90 <= la <= 90 and -180 <= lo <= 180 and (la, lo) not in out and (la or lo):
+        if _valid(la, lo, out):
+            out.append((la, lo))
+        if len(out) >= cap:
+            break
+    if out:
+        return out
+    for m in _DMS.finditer(page):  # fall back to degrees-minutes-seconds
+        la = _dms(m.group(1), m.group(2), m.group(3), m.group(4))
+        lo = _dms(m.group(5), m.group(6), m.group(7), m.group(8))
+        if _valid(la, lo, out):
             out.append((la, lo))
         if len(out) >= cap:
             break
@@ -71,22 +96,24 @@ def main() -> None:
     ids = sorted(meta)
     print(f"  fetching {len(ids)} PorterGeo pages (cached resume) ...", flush=True)
 
-    done = [0]
-    fail = [0]
+    done = fail = fetched = 0
+    DELAY = 0.375  # seconds between real fetches (~2.7 req/s) — 4× faster, still well-behaved
 
-    def grab(mid):
+    # Sequential, spaced. Cached pages are skipped with NO delay so resume is fast.
+    for mid in ids:
+        dest = _PAGES / f"{mid}.html"
+        done += 1
+        if dest.exists() and dest.stat().st_size > 0:
+            continue
         try:
             _fetch(mid)
+            fetched += 1
         except Exception:  # noqa: BLE001
-            fail[0] += 1
-        done[0] += 1
-        if done[0] % 100 == 0:
-            print(f"    {done[0]}/{len(ids)}  (failed {fail[0]})", flush=True)
-
-    # Gentle: 3 workers so PorterGeo doesn't rate-limit/block the run.
-    with ThreadPoolExecutor(max_workers=3) as ex:
-        list(ex.map(grab, ids))
-    print(f"  fetched; {fail[0]} pages failed after retries", flush=True)
+            fail += 1
+        time.sleep(DELAY)
+        if fetched and fetched % 50 == 0:
+            print(f"    {done}/{len(ids)} seen, {fetched} fetched, {fail} failed", flush=True)
+    print(f"  done: {fetched} newly fetched, {fail} failed after retries", flush=True)
 
     rows = []
     for mid in ids:
