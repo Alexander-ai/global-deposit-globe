@@ -123,6 +123,14 @@ export default function AboutPanel({ onClose }: Props) {
               <strong>Active / All</strong> toggle switches between the balanced default and the
               full historical set.
             </li>
+            <li>
+              Major deposits link out to{' '}
+              <a href="https://portergeo.com.au/database/" target="_blank" rel="noreferrer">
+                PorterGeo&rsquo;s
+              </a>{' '}
+              in-depth geological description, where we can match the deposit confidently by
+              name, country and commodity (so a generic name is never linked to the wrong site).
+            </li>
           </ul>
         </div>
       </div>

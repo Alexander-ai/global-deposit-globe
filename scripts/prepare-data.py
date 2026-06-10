@@ -126,6 +126,11 @@ def main() -> None:
         normalize.status_for(sr, s) for sr, s in zip(df["status_raw"], df["source"])
     ]
 
+    # PorterGeo crosswalk: attach a link to the in-depth description page for the (major)
+    # deposits we can confidently match by name + country + commodity.
+    import portergeo  # noqa: E402
+    df, n_porter = portergeo.add_links(df)
+
     # ---- Report --------------------------------------------------------------
     print("=" * 70)
     print("  multi-source deposits  ·  build report")
@@ -153,6 +158,8 @@ def main() -> None:
             top = ", ".join(f"{b}:{sc[b]}" for b in normalize.NAMED_BUCKETS if sc[b])
             print(f"    {sid:<12} {sum(sc.values()):>7,}  {top}")
 
+    print(f"\n  PorterGeo: linked {n_porter:,} deposits to in-depth descriptions")
+
     if dedup_stats:
         print(f"\n  DEDUP: removed {dedup_stats['removed']:,} duplicate records")
         print("    merges by source-pair:")
@@ -169,12 +176,13 @@ def main() -> None:
         df["magnitude"] = None
     if "miningTechnique" not in df.columns:
         df["miningTechnique"] = None
+    if "porterUrl" not in df.columns:
+        df["porterUrl"] = None
     records = []
     cols = ["name", "lat", "lng", "commodity", "status", "depositType", "miningTechnique",
-            "also", "source", "country", "magnitude", "corrob"]
-    for name, lat, lng, commodity, status, dtype, mining, also, source, country, mag, corrob in zip(
-        *(df[c] for c in cols)
-    ):
+            "also", "source", "country", "magnitude", "corrob", "porterUrl"]
+    for (name, lat, lng, commodity, status, dtype, mining, also, source, country, mag,
+         corrob, porter) in zip(*(df[c] for c in cols)):
         rec = {
             "name": name if name else "Unnamed site",
             "lat": float(lat),
@@ -196,6 +204,8 @@ def main() -> None:
             rec["m"] = round(float(mag), 2)  # magnitude 1.2–3 -> dot size
         if pd.notna(corrob) and int(corrob) > 1:
             rec["corrob"] = int(corrob)  # distinct databases corroborating this site
+        if isinstance(porter, str) and porter:
+            rec["porterUrl"] = porter  # link to PorterGeo's in-depth description
         records.append(rec)
 
     validate.print_report(records)  # records now carry country for the balance metric

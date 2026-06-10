@@ -128,6 +128,18 @@ export default function DepositCard({ deposit, onClose, onCountry }: Props) {
           </dd>
         </div>
       </dl>
+
+      {deposit.porterUrl && (
+        <a
+          className="card__porter"
+          href={deposit.porterUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Full description on PorterGeo
+          <span aria-hidden="true"> ↗</span>
+        </a>
+      )}
     </div>
   )
 }

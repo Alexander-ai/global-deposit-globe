@@ -93,6 +93,25 @@
   opacity: 0.8;
 }
 
+/* Deep-dive link to the PorterGeo write-up — shown only for confidently-matched majors. */
+.card__porter {
+  display: inline-flex;
+  align-items: center;
+  margin-top: var(--sp-4);
+  padding: 6px 12px;
+  font-size: var(--fs-label);
+  color: var(--focus);
+  text-decoration: none;
+  background: rgba(127, 192, 255, 0.08);
+  border: 1px solid rgba(127, 192, 255, 0.25);
+  border-radius: var(--radius-swatch);
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+.card__porter:hover {
+  background: rgba(127, 192, 255, 0.16);
+  border-color: var(--focus);
+}
+
 .card__country {
   padding: 0;
   background: none;

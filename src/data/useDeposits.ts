@@ -24,6 +24,8 @@ export interface Deposit {
   m?: number
   /** Number of distinct databases corroborating this site (present when ≥ 2). */
   corrob?: number
+  /** Link to PorterGeo's in-depth description page (only on confidently-matched majors). */
+  porterUrl?: string
 }
 
 type LoadState =
