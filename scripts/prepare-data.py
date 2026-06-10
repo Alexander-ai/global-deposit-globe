@@ -70,7 +70,9 @@ def main() -> None:
 
     df["lat"] = df["lat"].round(4)
     df["lng"] = df["lng"].round(4)
-    df["name"] = df["name"].fillna("").str.strip()
+    # Tidy names (mojibake repair, drop ';'-list tails, "Mine at X" -> "X", collapse doubled
+    # phrases) before everything downstream — dedup matching, PorterGeo linking, search.
+    df["name"] = [normalize.clean_name(n) for n in df["name"].fillna("")]
 
     # Coordinate-integrity (#2): drop records whose coords fall well outside their stated
     # country (lat/lng swaps, sign errors, gross geocodes). Unknown countries are kept.

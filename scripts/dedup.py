@@ -159,6 +159,23 @@ def _completeness(r) -> int:
     )
 
 
+# Words that mark a name as a facility/operation description rather than the site's name.
+_DISPLAY_FACILITY = {
+    "mine", "mines", "plant", "plants", "refinery", "refineries", "smelter", "smelters",
+    "mill", "mills", "concentrator", "concentrators", "open", "pit", "underground",
+    "operations", "operation", "works", "quarry", "quarries", "deposit", "prospect",
+    "workings",
+}
+
+
+def _display_score(name: str):
+    """Lower = better DISPLAY name: prefer one without facility words, then fewer tokens,
+    then shorter, then alphabetical (deterministic)."""
+    toks = name.lower().split()
+    has_fac = any(t in _DISPLAY_FACILITY for t in toks)
+    return (1 if has_fac else 0, len(toks), len(name), name)
+
+
 def merge(df: pd.DataFrame):
     """Collapse duplicate clusters. Returns (deduped_frame, stats) where stats has the
     removed count, merges by source-pair, and the widest accepted merges for audit."""
@@ -298,6 +315,12 @@ def merge(df: pd.DataFrame):
             ),
         )
         s = rows[survivor]
+        # Display name: the survivor wins on source priority, but its name may be a verbose
+        # facility string ("Olympic Dam underground copper-…-mine"). Prefer the cleanest name
+        # among the merged members for what the user actually reads.
+        names = [rows[i]["name"] for i in members if rows[i]["name"]]
+        if names:
+            s["name"] = min(names, key=_display_score)
         # Provenance: how many distinct databases corroborate this site (shown in the card).
         s["corrob"] = len({rows[i]["source"] for i in members})
         # Magnitude: a site is as big as its biggest estimate across sources.

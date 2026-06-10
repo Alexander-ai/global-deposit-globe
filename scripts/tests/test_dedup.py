@@ -145,6 +145,19 @@ def test_survivor_unions_commodities_and_keeps_country():
     assert "Uranium" in s["commodities"] or "URANIUM" in [c.upper() for c in s["commodities"]]
 
 
+def test_survivor_takes_the_cleanest_name():
+    # A merged cluster should display the cleanest member name, not a verbose facility string,
+    # even if the verbose record won survivorship on source priority.
+    recs = [
+        rec("Olympic Dam underground copper-silver-gold-uranium mine", -30.44, 136.88,
+            "minfac", commodities=["Copper"], country="Australia"),
+        rec("Olympic Dam", -30.45, 136.89, "mrds", commodities=["Copper"]),
+    ]
+    out = merge_names(recs).to_dict("records")
+    assert len(out) == 1
+    assert out[0]["name"] == "Olympic Dam"
+
+
 def test_empty_frame_is_safe():
     out, stats = dedup.merge(frame([]))
     assert len(out) == 0

@@ -160,3 +160,40 @@ class TestSplitDepositType:
             "Disseminated mineralization",
             None,
         )
+
+
+class TestCleanName:
+    @pytest.mark.parametrize(
+        "raw, expect",
+        [
+            # mojibake repair (UTF-8 read as Windows-1252 — the real corruption in the data)
+            ("Gasp\xc3\xa9", "Gaspé"),               # Ã© -> é
+            ("Ca\xc3\xb1ariaco", "Cañariaco"),       # Ã± -> ñ
+            ("Chang\xc2\x92an", "Chang'an"),         # Â + 0x92 -> ' (smart apostrophe)
+            ("Man\xad", "Man"),                      # soft hyphen removed
+            # ';'-joined occurrence list -> primary
+            ("The UR Showing; Charlebois Lake North; Charlebois South", "The UR Showing"),
+            # "Mine at X" / "Refinery in X" -> the place
+            ("Mine at Grasberg", "Grasberg"),
+            ("Refinery in Sudbury, Ontario", "Sudbury, Ontario"),
+            # doubled multi-word phrase collapsed
+            ("an oxide plant for and an oxide plant for cathode",
+             "an oxide plant for cathode"),
+            # whitespace tidy
+            ("El   Telégrafo  ", "El Telégrafo"),
+        ],
+    )
+    def test_cleanup(self, raw, expect):
+        assert normalize.clean_name(raw) == expect
+
+    @pytest.mark.parametrize(
+        "name",
+        ["Woodie Woodie", "Murrin Murrin", "Arctic Arctic Bear", "Gaspé", "Ticnámar"],
+    )
+    def test_preserves_real_names(self, name):
+        # Single-word reduplication and accented names are legitimate — never altered.
+        assert normalize.clean_name(name) == name
+
+    def test_non_string(self):
+        assert normalize.clean_name(None) == ""
+        assert normalize.clean_name(float("nan")) == ""

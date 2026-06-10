@@ -11,6 +11,9 @@ byte-for-byte identical, then generalized to take an ORDERED LIST of raw commodi
 from __future__ import annotations
 
 import re
+import unicodedata
+
+import ftfy
 
 # --- commodity normalization --------------------------------------------------
 # Match on the upper-cased token. Symbols require an EXACT token match; everything
@@ -176,3 +179,41 @@ def split_deposit_type(raw) -> tuple[str | None, str | None]:
         else:
             kept.append(tok)
     return (", ".join(kept) or None, ", ".join(methods) or None)
+
+
+# --- deposit-name cleanup -----------------------------------------------------
+# Most source mojibake is classic double-encoding (UTF-8 read as Windows-1252): "GaspA©"
+# -> "Gaspé"-style, "Chang..." smart quotes, etc. ftfy repairs these robustly and leaves
+# already-correct text (accents, reduplicated names like "Woodie Woodie") untouched, so we
+# lean on it instead of a hand-rolled byte table. A final control/format-char strip clears the
+# rare residue ftfy cannot recover (a truly lost lead byte).
+
+# "Mine at Grasberg" / "Refinery in Sudbury" -> the place name. (The facility word is noise.)
+_FACILITY_AT = re.compile(
+    r"^(?:the\s+)?(?:mine|mines|plant|smelter|refinery|mill|concentrator|quarry|works|"
+    r"deposit|prospect|workings)\s+(?:at|in|near)\s+(.+)$",
+    re.I,
+)
+
+# A doubled multi-word phrase (>=4 words) from a source-side text bug ("an oxide plant for and
+# an oxide plant for cathode"). NOT single-word reduplication, often a real place name
+# ("Woodie Woodie", "Murrin Murrin").
+_DUP_PHRASE = re.compile(r"\b((?:\w+\s+){3,}?\w+)\s+(?:and\s+|,\s*)?\1\b", re.I)
+
+
+def clean_name(name) -> str:
+    """Tidy a raw deposit name for display/search/matching: repair mojibake (ftfy), drop
+    invisible chars, take the primary of a ';'-joined occurrence list, unwrap 'Mine at X' ->
+    'X', and collapse a doubled phrase. Conservative — never touches casing or real names."""
+    if not isinstance(name, str):
+        return ""
+    n = ftfy.fix_text(name)
+    # drop control/format chars (C0/C1 controls, soft hyphen, zero-width, BOM, any residue)
+    n = "".join(c for c in n if unicodedata.category(c)[0] != "C")
+    n = n.split(";")[0]                      # "A; B; C" occurrence list -> primary
+    n = re.sub(r"\s+", " ", n).strip()
+    m = _FACILITY_AT.match(n)
+    if m:
+        n = m.group(1).strip()
+    n = _DUP_PHRASE.sub(r"\1", n)
+    return re.sub(r"\s+", " ", n).strip()
