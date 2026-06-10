@@ -128,8 +128,9 @@ export default function AboutPanel({ onClose }: Props) {
               <a href="https://portergeo.com.au/database/" target="_blank" rel="noreferrer">
                 PorterGeo&rsquo;s
               </a>{' '}
-              in-depth geological description, where we can match the deposit confidently by
-              name, country and commodity (so a generic name is never linked to the wrong site).
+              in-depth geological description, matched by location and commodity where we have
+              coordinates, otherwise by name &mdash; conservatively, so a link never points at a
+              same-named site elsewhere.
             </li>
           </ul>
         </div>

@@ -160,7 +160,8 @@ def main() -> None:
             top = ", ".join(f"{b}:{sc[b]}" for b in normalize.NAMED_BUCKETS if sc[b])
             print(f"    {sid:<12} {sum(sc.values()):>7,}  {top}")
 
-    print(f"\n  PorterGeo: linked {n_porter:,} deposits to in-depth descriptions")
+    print(f"\n  PorterGeo: linked {n_porter:,} deposits to in-depth descriptions "
+          "(by coordinates where available, else name)")
 
     if dedup_stats:
         print(f"\n  DEDUP: removed {dedup_stats['removed']:,} duplicate records")

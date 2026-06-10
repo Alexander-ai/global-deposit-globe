@@ -6,16 +6,19 @@ deposits we can confidently match against PorterGeo's ~1,800-deposit listing, so
 card can link out to their in-depth geological write-up.
 
 PorterGeo keys pages by an opaque numeric id (mineinfo.php?mineid=mn204) with no relation to
-the deposit name, but publishes one structured listing page (name → id, country, commodity).
-We parse that once and match by canonical name + country.
+the deposit name. scrape_portergeo.py harvests every page's COORDINATES into a committed
+`portergeo_index.json`; this module matches our deposits to PorterGeo by PROXIMITY (+ a
+commodity guard), which is far more robust than name matching and is read entirely offline.
 
 Conservative on purpose: a missed link is harmless, but a WRONG link sends a reader to the
-wrong deposit. So we link only when the canonical name is globally UNIQUE in PorterGeo, or
-when an ambiguous name is disambiguated by an exact country match. Anything else: no link.
+wrong deposit — so a link needs the deposit to be either right on top of a PorterGeo entry
+(R_PROX) or in the same region with an agreeing name (R_NAME), and commodity-compatible.
 """
 
 from __future__ import annotations
 
+import json
+import math
 import re
 import sys
 from collections import defaultdict
@@ -23,17 +26,11 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parent))
 import normalize  # noqa: E402  (commodity bucketing — the match's commodity guard)
-from sources.base import ensure_cached  # noqa: E402  (reuse cache + polite UA)
+from schema import ROOT  # noqa: E402
+from sources.base import ensure_cached  # noqa: E402  (reuse cache + polite UA, for the scraper)
 
 LISTING_URL = "https://portergeo.com.au/database/display.php"
 PAGE_URL = "https://portergeo.com.au/database/mineinfo.php?mineid="
-
-# A name unique in PorterGeo can still be COMMON in our data ("Escondida" = "hidden" names
-# dozens of small Latin-American deposits). Linking all of them to one famous page is wrong,
-# so only link a name that is also LOCALIZED on our side: its records occupy few ~1° cells
-# (one site, possibly listed several times) rather than scattering across the map. Counting
-# cells, not records, so an un-merged but co-located major (Olympic Dam ×8) still counts as one.
-MAX_NAME_CELLS = 2
 
 # One listing row: the linked name, then the country and commodities cells.
 _ROW = re.compile(
@@ -113,6 +110,13 @@ def _buckets(commodities_html: str) -> frozenset:
     return frozenset(out)
 
 
+# --- name-based fallback (used where we have no PorterGeo coordinate) ----------
+# A name unique in PorterGeo can still be COMMON in our data ("Escondida" = dozens of small
+# "hidden" sites), so the name fallback only links a name LOCALIZED on our side (its records
+# occupy ≤ this many ~1° cells). Coordinates, when present, supersede this entirely.
+MAX_NAME_CELLS = 2
+
+
 def load_index(html: str) -> dict[str, set]:
     """canonical-name -> {(country, buckets, mineid)} from the listing HTML."""
     byname: dict[str, set] = defaultdict(set)
@@ -126,16 +130,13 @@ def load_index(html: str) -> dict[str, set]:
 
 
 def link_for(name, country, commodity, byname: dict[str, set]) -> str | None:
-    """The PorterGeo URL for a deposit, or None if no confident match (pure / testable).
-
-    Requires the name to match AND the commodity to be compatible (so a gold "Eagle" never
-    links to a nickel "Eagle"). A name unique to one PorterGeo deposit links when our country
-    is unknown or agrees; an ambiguous name needs an exact country match."""
+    """Name-based PorterGeo URL (pure/testable): the name must match AND the commodity be
+    compatible; a unique name links when country agrees/unknown, an ambiguous one needs an
+    exact country match."""
     c = _canon(name or "")
     if not c or c not in byname:
         return None
     co = _country(country)
-    # keep only commodity-compatible candidates
     compat = [
         (cc, mid)
         for (cc, buckets, mid) in byname[c]
@@ -145,35 +146,118 @@ def link_for(name, country, commodity, byname: dict[str, set]) -> str | None:
     if len(ids) == 1:
         mid = next(iter(ids))
         countries = {cc for cc, m in compat if m == mid}
-        if not co or co in countries:        # unique name + country agrees (or unknown)
+        if not co or co in countries:
             return PAGE_URL + mid
         return None
-    if co:                                   # ambiguous name -> need an exact country match
+    if co:
         hit = {mid for (cc, mid) in compat if cc == co}
         if len(hit) == 1:
             return PAGE_URL + next(iter(hit))
     return None
 
 
-def add_links(df, byname: dict[str, set] | None = None):
-    """Attach a `porterUrl` column to a (deduped) frame. Returns (df, n_linked)."""
+# --- coordinate-based matching ------------------------------------------------
+# The committed index (built by scrape_portergeo.py) gives every PorterGeo deposit a
+# location, so we match by PROXIMITY — far more robust than names: it links variants
+# (Norilsk <-> "Talnakh Complex"), disambiguates common names (only the "Escondida" AT
+# Escondida's coords matches), and is read offline so the build never scrapes.
+INDEX_PATH = ROOT / "scripts" / "portergeo_index.json"
+R_PROX_KM = 5.0    # same spot + compatible commodity -> link (strong on its own)
+R_NAME_KM = 30.0   # same region AND the name agrees -> link (catches coordinate noise)
+_GRID = 0.5        # ~55 km blocking cells
+
+
+def _haversine_km(a_lat, a_lng, b_lat, b_lng) -> float:
+    r = 6371.0
+    p1, p2 = math.radians(a_lat), math.radians(b_lat)
+    dp, dl = math.radians(b_lat - a_lat), math.radians(b_lng - a_lng)
+    h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(h))
+
+
+def _name_agrees(a: str, b: str) -> bool:
+    if not a or not b or len(a) < 3 or len(b) < 3:
+        return False
+    if a == b:
+        return True
+    ta, tb = set(a.split()), set(b.split())
+    return ta <= tb or tb <= ta
+
+
+def build_grid(index: list[dict]) -> dict:
+    """Spatial blocking grid over PorterGeo entries, each enriched with canon + bucket set."""
+    grid: dict = defaultdict(list)
+    for e in index:
+        ent = {"id": e["id"], "lat": float(e["lat"]), "lng": float(e["lng"]),
+               "b": set(e.get("b") or []), "canon": _canon(e.get("name", ""))}
+        grid[(round(ent["lat"] / _GRID), round(ent["lng"] / _GRID))].append(ent)
+    return grid
+
+
+def best_link(lat: float, lng: float, commodity: str, canon: str, grid: dict) -> str | None:
+    """PorterGeo URL for a deposit (pure/testable): the nearest commodity-compatible entry
+    within R_PROX, else the nearest name-agreeing entry within R_NAME, else None."""
+    cx, cy = round(lat / _GRID), round(lng / _GRID)
+    near_d, near = R_PROX_KM, None
+    name_d, name = R_NAME_KM, None
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            for e in grid.get((cx + dx, cy + dy), ()):
+                if not (commodity == "other" or not e["b"] or commodity in e["b"]):
+                    continue
+                d = _haversine_km(lat, lng, e["lat"], e["lng"])
+                if d < near_d:
+                    near_d, near = d, e
+                if d < name_d and _name_agrees(canon, e["canon"]):
+                    name_d, name = d, e
+    e = near or name
+    return PAGE_URL + e["id"] if e else None
+
+
+def add_links(df, index: list[dict] | None = None, byname: dict[str, set] | None = None):
+    """Attach a `porterUrl` column. HYBRID: match by PROXIMITY from the committed coordinate
+    index first (precise, variant-tolerant), then fall back to NAME matching from the listing
+    for deposits the (possibly incomplete) coordinate index doesn't cover. Returns
+    (df, n_linked)."""
     df = df.copy()
+    # coordinate index (committed; may be partial or absent → just fewer proximity matches)
+    if index is None:
+        try:
+            index = json.loads(INDEX_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            index = []
+    grid = build_grid(index) if index else {}
+    # name index (one cached listing page) for the fallback
     if byname is None:
         try:
             path = ensure_cached(LISTING_URL, "portergeo_listing.html")
             byname = load_index(path.read_text(encoding="utf-8", errors="replace"))
-        except Exception as e:  # network/parse failure: degrade to no links, don't break build
-            print(f"  PorterGeo: skipped ({e})")
-            df["porterUrl"] = None
-            return df, 0
+        except Exception as e:  # no listing AND no coords -> no links, don't break the build
+            byname = {}
+            if not grid:
+                print(f"  PorterGeo: skipped ({e})")
+                df["porterUrl"] = None
+                return df, 0
+
     canons = [_canon(n or "") for n in df["name"]]
-    cells: dict[str, set] = defaultdict(set)  # distinct ~1° cells each name occupies
+    name_cells: dict[str, set] = defaultdict(set)  # name dispersion for the fallback gate
     for cn, lat, lng in zip(canons, df["lat"], df["lng"]):
         if cn:
-            cells[cn].add((round(float(lat)), round(float(lng))))
-    urls = [
-        link_for(n, c, b, byname) if (cn and len(cells[cn]) <= MAX_NAME_CELLS) else None
-        for n, cn, c, b in zip(df["name"], canons, df["country"], df["commodity"])
-    ]
+            name_cells[cn].add((round(float(lat)), round(float(lng))))
+
+    n_prox = 0
+    urls = []
+    for name, cn, lat, lng, country, comm in zip(
+        df["name"], canons, df["lat"], df["lng"], df["country"], df["commodity"]
+    ):
+        u = best_link(float(lat), float(lng), comm, cn, grid) if grid else None
+        if u is not None:
+            n_prox += 1
+        elif byname and cn and len(name_cells[cn]) <= MAX_NAME_CELLS:
+            u = link_for(name, country, comm, byname)
+        urls.append(u)
     df["porterUrl"] = urls
-    return df, sum(1 for u in urls if u)
+    total = sum(1 for u in urls if u)
+    if grid:
+        print(f"  PorterGeo: {n_prox:,} matched by coordinates, {total - n_prox:,} by name")
+    return df, total
