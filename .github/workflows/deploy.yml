@@ -28,9 +28,11 @@ jobs:
           cache: npm
       - run: npm ci
       # Project Pages serve under /<repo>/ — build with that base so assets resolve.
+      # Must `export` in the same step: $GITHUB_ENV only reaches *later* steps, so the
+      # earlier version left the build at base "/" and assets 404'd at the domain root.
       - name: Build
         run: |
-          echo "VITE_BASE=/${GITHUB_REPOSITORY#*/}/" >> "$GITHUB_ENV"
+          export VITE_BASE="/${GITHUB_REPOSITORY#*/}/"
           npm run build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
