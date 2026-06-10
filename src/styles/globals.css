@@ -95,3 +95,94 @@ body {
   font-size: 0.7rem;
   color: var(--text-muted);
 }
+
+/* Search highlight — a brief "here it is" flag so a searched deposit is findable in a
+   crowded cluster: expanding yellow rings at the point plus a bouncing, flashing pin above
+   it. Yellow (alert, not a commodity color) so it pops over any point underneath. The outer
+   element is positioned on the point each frame (the camera is panning); the children carry
+   the animation, so their transforms never fight the JS-driven position. */
+.globe-search-mark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  will-change: transform;
+}
+.globe-search-mark.is-on {
+  opacity: 1;
+}
+.globe-search-mark__ring,
+.globe-search-mark__pin {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.globe-search-mark__ring {
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px; /* centered on the point */
+  border: 2.5px solid #ffe14d;
+  border-radius: 50%;
+  opacity: 0;
+}
+.globe-search-mark.is-on .globe-search-mark__ring {
+  animation: search-ring 0.95s ease-out 3;
+}
+/* White-cored so it reads as a "marker", not just another gold deposit underneath it. */
+.globe-search-mark__pin {
+  width: 15px;
+  height: 15px;
+  margin: -7.5px 0 0 -7.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 38%, #ffffff, #ffd60a 68%);
+  box-shadow: 0 0 10px 3px rgba(255, 214, 10, 0.9);
+  opacity: 0;
+}
+.globe-search-mark.is-on .globe-search-mark__pin {
+  animation: search-bounce 0.6s ease-in-out 4, search-flash 0.6s ease-in-out 4;
+}
+
+@keyframes search-ring {
+  0% {
+    transform: scale(0.4);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(5);
+    opacity: 0;
+  }
+}
+@keyframes search-bounce {
+  0%,
+  100% {
+    transform: translateY(-15px);
+  }
+  50% {
+    transform: translateY(-31px);
+  }
+}
+@keyframes search-flash {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 7px 2px rgba(255, 214, 10, 0.6);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 22px 8px rgba(255, 224, 80, 1);
+  }
+}
+
+/* Reduced motion: keep the highlight (a static pin above the point, a gentle glow pulse,
+   one ring) but drop the bouncing/scaling. */
+@media (prefers-reduced-motion: reduce) {
+  .globe-search-mark.is-on .globe-search-mark__pin {
+    transform: translateY(-18px);
+    animation: search-flash 0.9s ease-in-out 3;
+  }
+  .globe-search-mark.is-on .globe-search-mark__ring {
+    animation: search-ring 1s ease-out 1;
+  }
+}

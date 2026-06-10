@@ -7,4 +7,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: process.env.VITE_BASE || '/',
   plugins: [react()],
+  // Honor a PORT from the environment (e.g. preview tooling) but keep Vite's default (5173)
+  // for plain `npm run dev`.
+  server: process.env.PORT ? { port: Number(process.env.PORT) } : undefined,
 })

@@ -128,8 +128,11 @@ export default function DepositGlobe({
   const containerRef = useRef<HTMLDivElement>(null)
   const haloRef = useRef<HTMLDivElement>(null)
   const tipRef = useRef<HTMLDivElement>(null)
+  const markRef = useRef<HTMLDivElement>(null) // search-result highlight
   const holdTimer = useRef<number | undefined>(undefined)
   const rafHover = useRef<number | undefined>(undefined)
+  const markRaf = useRef<number | undefined>(undefined)
+  const markTimer = useRef<number | undefined>(undefined)
   const downAt = useRef<{ x: number; y: number } | null>(null)
 
   // THREE objects owned imperatively (live in the globe scene, not React).
@@ -401,7 +404,39 @@ export default function DepositGlobe({
     if (g) g.controls().autoRotate = false
   }, [])
 
-  // Search "fly-to": ease the camera to a chosen deposit.
+  // Pulse a temporary highlight on a deposit so it's findable in a crowded cluster: a
+  // bouncing, flashing-yellow pin + expanding rings. Tracks the point each frame because
+  // the camera is still easing into place. Starts after a short delay so the marker appears
+  // as the deposit rotates to the front, not at a back-of-globe projection mid-pan.
+  const flashDeposit = useCallback((dep: Deposit) => {
+    const el = markRef.current
+    if (!el) return
+    if (markTimer.current) window.clearTimeout(markTimer.current)
+    if (markRaf.current) cancelAnimationFrame(markRaf.current)
+    el.classList.remove('is-on')
+    markTimer.current = window.setTimeout(() => {
+      const g = globeRef.current
+      if (!g) return
+      void el.offsetWidth // restart the CSS animations
+      el.classList.add('is-on')
+      let start = 0
+      const DURATION = 2500
+      const tick = (t: number) => {
+        if (!start) start = t
+        const sc = g.getScreenCoords(dep.lat, dep.lng, POINT_ALT)
+        el.style.transform = `translate(${sc.x}px, ${sc.y}px)`
+        if (t - start < DURATION) {
+          markRaf.current = requestAnimationFrame(tick)
+        } else {
+          el.classList.remove('is-on')
+          markRaf.current = undefined
+        }
+      }
+      markRaf.current = requestAnimationFrame(tick)
+    }, 450)
+  }, [])
+
+  // Search "fly-to": ease the camera to a chosen deposit, then flag it.
   useEffect(() => {
     if (!ready || !flyTo) return
     const g = globeRef.current
@@ -411,7 +446,17 @@ export default function DepositGlobe({
       { lat: flyTo.deposit.lat, lng: flyTo.deposit.lng, altitude: 1.1 },
       1200,
     )
-  }, [ready, flyTo, stopAutoRotate])
+    flashDeposit(flyTo.deposit)
+  }, [ready, flyTo, stopAutoRotate, flashDeposit])
+
+  // Stop the highlight loop on unmount.
+  useEffect(
+    () => () => {
+      if (markTimer.current) window.clearTimeout(markTimer.current)
+      if (markRaf.current) cancelAnimationFrame(markRaf.current)
+    },
+    [],
+  )
 
   // Imperative hover/click on the canvas (no React re-render on mouse move).
   useEffect(() => {
@@ -521,6 +566,10 @@ export default function DepositGlobe({
       <div ref={tipRef} className="globe-tip globe-tip--floating" aria-hidden="true">
         <span className="globe-tip__name" />
         <span className="globe-tip__meta" />
+      </div>
+      <div ref={markRef} className="globe-search-mark" aria-hidden="true">
+        <span className="globe-search-mark__ring" />
+        <span className="globe-search-mark__pin" />
       </div>
     </div>
   )
