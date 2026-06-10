@@ -544,11 +544,18 @@ export default function DepositGlobe({
           polygonSideColor={() => 'rgba(0,0,0,0)'}
           polygonStrokeColor={() => ENV.landStroke}
           polygonAltitude={0.006}
-          onPolygonClick={(polygon) =>
+          onPolygonClick={(polygon, event) => {
+            // A click that lands on a deposit selects that deposit — it must NOT also filter
+            // by country. Only blank land inside a country applies the country filter.
+            const rect = containerRef.current?.getBoundingClientRect()
+            const ev = event as MouseEvent | undefined
+            if (rect && ev && pickIndex(ev.clientX - rect.left, ev.clientY - rect.top) >= 0) {
+              return
+            }
             onPickCountry(
               (polygon as { properties?: Record<string, unknown> })?.properties ?? null,
             )
-          }
+          }}
           // Density mode: aggregate deposits into commodity-colored hexbins.
           hexBinPointsData={hexData}
           hexBinPointLat="lat"
