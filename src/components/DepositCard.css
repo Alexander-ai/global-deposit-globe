@@ -1,0 +1,133 @@
+/* Deposit detail card — same translucent surface as the panel, docked bottom-right. */
+
+.card {
+  position: absolute;
+  right: var(--sp-6);
+  bottom: var(--sp-8);
+  z-index: 4;
+  width: 280px;
+  max-width: calc(100vw - 2 * var(--sp-6));
+  padding: var(--sp-4);
+  background: var(--ui-surface);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-float);
+  animation: card-in 200ms ease-out;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card__close {
+  position: absolute;
+  top: var(--sp-2);
+  right: var(--sp-2);
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-swatch);
+  color: var(--text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+.card__close:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.card__name {
+  margin: 0 var(--sp-6) var(--sp-3) 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.card__rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.card__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.card__row dt {
+  flex: 0 0 auto;
+  font-size: var(--fs-count);
+  color: var(--text-muted);
+}
+.card__row dd {
+  margin: 0;
+  flex: 1 1 auto;
+  text-align: right;
+  font-size: var(--fs-label);
+  color: var(--text);
+  word-break: break-word;
+}
+
+.card__source {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.card__corrob {
+  opacity: 0.8;
+}
+
+.card__country {
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--focus);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(127, 192, 255, 0.4);
+}
+.card__country:hover {
+  text-decoration-color: var(--focus);
+}
+
+.card__commodity {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.card__swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+/* Mobile: the card spans the bottom, above the panel sheet. */
+@media (max-width: 640px) {
+  .card {
+    left: var(--sp-3);
+    right: var(--sp-3);
+    bottom: var(--sp-3);
+    width: auto;
+    max-width: none;
+    z-index: 6; /* over the bottom-sheet panel while a deposit is open */
+  }
+}

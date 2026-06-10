@@ -1,0 +1,8 @@
+# Data-pipeline + test dependencies (scripts/). The app itself needs none of these — they
+# only run at data-build time and in CI. Keep this minimal (see CLAUDE.md constraints):
+# pandas + rapidfuzz (dedup) + pyshp (shapefiles, no GDAL). geopandas stays OUT — the one
+# .gdb source is optional and GDAL-quarantined.
+pandas>=2.2
+rapidfuzz>=3.0
+pyshp>=2.3
+pytest>=8.0

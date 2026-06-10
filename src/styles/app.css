@@ -1,0 +1,247 @@
+/* Layout shell — the chrome that floats over the full-bleed globe.
+   Everything here stays quiet so the planet + constellation is the only loud thing. */
+
+.app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* The globe canvas, full-bleed, behind all chrome. Fades in on load. */
+.globe-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 1200ms ease-out;
+}
+.globe-stage.is-ready {
+  opacity: 1;
+}
+
+/* --- Left rail: title stacked above the control panel ----------------------- */
+.rail {
+  position: absolute;
+  top: var(--sp-6);
+  left: var(--sp-6);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  max-width: min(360px, 82vw);
+  max-height: calc(100vh - 2 * var(--sp-6));
+  pointer-events: none; /* the rail is transparent to drags; the panel re-enables itself */
+}
+
+/* --- Thin top bar ----------------------------------------------------------- */
+.topbar {
+  max-width: 100%;
+  pointer-events: none; /* never steal a drag from the globe */
+}
+
+/* --- Toolbar: search + tier toggle + view toggle ---------------------------- */
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  pointer-events: none; /* children re-enable themselves */
+}
+.toolbar__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+.toolbar__view {
+  pointer-events: auto;
+  padding: 6px var(--sp-3);
+  background: var(--ui-surface);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-swatch);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: color 140ms ease;
+}
+.toolbar__view:hover {
+  color: var(--text);
+}
+
+/* Active country-filter chip. */
+.country-chip {
+  align-self: flex-start;
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  background: color-mix(in srgb, var(--atmosphere) 22%, var(--ui-surface));
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid color-mix(in srgb, var(--atmosphere) 45%, transparent);
+  border-radius: 999px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.country-chip:hover {
+  border-color: var(--atmosphere);
+}
+.country-chip__label {
+  font-weight: 500;
+}
+
+/* Density-tier segmented control. */
+.tier {
+  display: inline-flex;
+  pointer-events: auto;
+  padding: 2px;
+  background: var(--ui-surface);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-swatch);
+}
+.tier__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px var(--sp-2);
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+.tier__btn:hover {
+  color: var(--text);
+}
+.tier__btn.is-on {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+.tier__n {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.topbar__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.topbar__mark {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--atmosphere);
+  box-shadow: 0 0 12px 1px color-mix(in srgb, var(--atmosphere) 70%, transparent);
+}
+.topbar__dek {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-dek);
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* --- Loading / error / empty note (interface voice, no naked spinner) -------
+   A centered chip on the ui-surface so it reads as intentional and never tucks
+   behind the control panel. */
+.stage-note {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  margin: 0;
+  padding: 10px 16px;
+  background: var(--ui-surface);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-float);
+  font-family: var(--font-mono);
+  font-size: var(--fs-count);
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* --- Attribution ------------------------------------------------------------ */
+.attribution {
+  position: absolute;
+  left: var(--sp-6);
+  bottom: var(--sp-4);
+  right: var(--sp-6);
+  z-index: 2;
+  max-width: 820px;
+  font-size: var(--fs-attribution);
+  line-height: 1.5;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.attribution__about {
+  pointer-events: auto;
+  margin-right: 6px;
+  padding: 1px 6px;
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-attribution);
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+.attribution__about:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* --- Mobile: title stays top-left; the panel docks as a bottom sheet. --------- */
+@media (max-width: 640px) {
+  .rail {
+    top: var(--sp-4);
+    left: var(--sp-4);
+    right: var(--sp-4);
+    max-width: calc(100vw - 2 * var(--sp-4));
+    max-height: none;
+  }
+  /* Pull the panel out of the rail flow and dock it to the bottom edge. */
+  .panel {
+    position: fixed;
+    left: var(--sp-3);
+    right: var(--sp-3);
+    bottom: var(--sp-3);
+    width: auto;
+    max-width: none;
+    max-height: 42vh;
+  }
+  /* Keep the attribution clear of the bottom sheet. */
+  .attribution {
+    left: var(--sp-4);
+    right: var(--sp-4);
+    bottom: calc(42vh + 2 * var(--sp-3));
+    text-align: center;
+  }
+  .stage-note {
+    white-space: normal;
+    max-width: calc(100vw - 4 * var(--sp-4));
+    text-align: center;
+  }
+}

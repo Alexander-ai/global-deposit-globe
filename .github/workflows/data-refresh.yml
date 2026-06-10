@@ -1,0 +1,48 @@
+name: Data refresh
+
+# Re-downloads every source, rebuilds public/deposits.json, and — only if the spot-check
+# gate passes AND the dataset actually changed — opens a PR with the delta for human review.
+# The sources are historical (MRDS is frozen at 2011) so this is a low-frequency safety net
+# that catches upstream URL/schema drift, not a live feed. Runs monthly + on demand.
+on:
+  schedule:
+    - cron: "0 6 1 * *" # 06:00 UTC, first of each month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Rebuild dataset from sources
+        run: python scripts/prepare-data.py
+
+      # Gate: a refreshed dataset that drops a famous deposit fails here and never PRs.
+      - name: Strict accuracy gate
+        run: python scripts/validate.py --strict
+
+      - name: Open PR if the dataset changed
+        uses: peter-evans/create-pull-request@v6
+        with:
+          add-paths: public/deposits.json
+          branch: data/refresh
+          commit-message: "data: monthly refresh of deposits.json"
+          title: "Data refresh: deposits.json"
+          body: |
+            Automated monthly rebuild of `public/deposits.json` from all sources.
+
+            The strict spot-check gate passed. **Review the diff** — a large swing in the
+            record count or a shifted commodity mix usually means an upstream source changed
+            its schema or URL. Run `python scripts/validate.py` locally to see the full
+            balance + spot-check report for this build.
+          labels: data

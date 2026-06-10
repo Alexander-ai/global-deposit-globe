@@ -1,0 +1,147 @@
+/* Control panel = legend. Translucent, blurred, floating over the globe. */
+
+.panel {
+  pointer-events: auto;
+  width: 232px;
+  max-width: 80vw;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  padding: var(--sp-4);
+  background: var(--ui-surface);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-float);
+}
+
+.panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 0 var(--sp-3);
+}
+.panel__header {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-panel-header);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.panel__bulk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.panel__bulk-btn {
+  background: none;
+  border: none;
+  padding: 2px 2px;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 140ms ease;
+}
+.panel__bulk-btn:hover {
+  color: var(--text);
+}
+
+.panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* Section subheader (Precious / Base & ferrous / …). */
+.panel__group {
+  margin: var(--sp-2) 0 1px;
+  padding: 0 var(--sp-2);
+  font-family: var(--font-display);
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0.65;
+}
+.panel__group:first-child {
+  margin-top: 0;
+}
+
+.row-wrap {
+  position: relative;
+}
+
+/* Whole row is the toggle. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px var(--sp-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-swatch);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: var(--fs-label);
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+  transition: opacity 140ms ease, background-color 140ms ease;
+}
+.row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.row[aria-pressed='false'] {
+  opacity: 0.45;
+}
+
+/* "Only" (solo) — revealed over the count area on row hover/focus. */
+.row__solo {
+  position: absolute;
+  top: 50%;
+  right: var(--sp-2);
+  transform: translateY(-50%);
+  padding: 2px 7px;
+  background: color-mix(in srgb, var(--space-2) 88%, transparent);
+  border: 1px solid var(--hairline);
+  border-radius: 5px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.row-wrap:hover .row__solo,
+.row-wrap:focus-within .row__solo {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.row__swatch {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.row__label {
+  flex: 1 1 auto;
+}
+
+.row__count {
+  flex: 0 0 auto;
+  font-size: var(--fs-count);
+  color: var(--text-muted);
+}

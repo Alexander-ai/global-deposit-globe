@@ -1,0 +1,97 @@
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--space);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 400;
+  /* A barely-there vignette so the planet sits in deep space, not a flat fill. */
+  background:
+    radial-gradient(120% 120% at 50% 40%, var(--space) 55%, var(--space-2) 100%);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden; /* the globe is the full-bleed canvas */
+}
+
+/* The instrument feel: every number is mono. */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Visible keyboard focus on every interactive element. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Hover feedback drawn over the globe and positioned imperatively (top-left origin,
+   moved to the point via transform). The halo brightens the hovered point; the tip
+   names it. */
+.globe-halo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px; /* center on the translated point */
+  border: 2px solid #fff;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+  z-index: 1;
+  will-change: transform, opacity;
+}
+
+.globe-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 9px;
+  background: var(--ui-surface);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  box-shadow: var(--shadow-float);
+  text-align: left;
+}
+.globe-tip--floating {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: -14px 0 0 16px; /* sit just up-and-right of the point */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+  z-index: 2;
+  white-space: nowrap;
+  will-change: transform, opacity;
+}
+.globe-tip__name {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.globe-tip__meta {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}

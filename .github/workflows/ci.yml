@@ -1,0 +1,45 @@
+name: CI
+
+# Build + test gate. Runs on every push and PR; the data job is what "locks it down" —
+# it fails the build if the shipped dataset regresses on a famous-deposit spot-check.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  app:
+    name: Typecheck + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build # tsc -b && vite build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 7
+
+  data:
+    name: Pipeline tests + accuracy gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      # Unit tests pin the commodity classifier and the cross-source merge rules.
+      - name: Unit tests (normalizer + dedup)
+        run: pytest scripts/tests -q
+      # Strict accuracy gate against the committed dataset: every famous deposit must still
+      # be present in the right commodity bucket. Non-zero exit fails the build.
+      - name: Spot-check committed dataset
+        run: python scripts/validate.py --strict

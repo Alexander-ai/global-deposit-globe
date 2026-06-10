@@ -1,0 +1,66 @@
+/* Design tokens — mirrored from .claude/skills/globe-viz/references/design-system.md
+   These are the law. Do not introduce a color or font that isn't here. */
+:root {
+  /* Environment — the dark, recessive stage */
+  --space: #080b14; /* page / space background (near-black desaturated navy, NOT pure black) */
+  --space-2: #0c1120; /* subtle vignette toward edges */
+  --ocean: #10182b; /* globe ocean base */
+  --land: #1b2540; /* globe landmasses (just lighter than ocean) */
+  --atmosphere: #4da6ff; /* atmosphere halo (cool blue) — the only ambient glow */
+  --ui-surface: rgba(12, 17, 32, 0.72); /* translucent panels/cards */
+  --hairline: rgba(255, 255, 255, 0.08); /* borders, dividers (single-pixel) */
+  --text: #e8ecf4; /* primary text */
+  --text-muted: #8a93a8; /* secondary text, attribution, counts label */
+  --focus: #7fc0ff; /* keyboard focus ring */
+
+  /* Commodity colors — derived from the materials. Use these exact values. */
+  --c-gold: #f2c14e;
+  --c-copper: #c66b3d;
+  --c-lithium: #4fd1c5;
+  --c-cobalt: #2d6be0;
+  --c-nickel: #9fb4a7;
+  --c-ree: #b86bd6;
+  --c-zinc: #7a8aa0;
+  --c-uranium: #8fe34d;
+  --c-silver: #d6dce6;
+  --c-iron: #b03a30;
+  --c-bauxite: #e0bd86;
+  --c-platinum: #7fbccd;
+  --c-manganese: #7b5cb0;
+  --c-other-metals: #8a7f6e;
+  --c-other: #5a6478;
+
+  /* Typography */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Type scale (rem) */
+  --fs-title: 1.5rem;
+  --fs-dek: 0.95rem;
+  --fs-panel-header: 0.8rem;
+  --fs-label: 0.9rem;
+  --fs-count: 0.85rem;
+  --fs-attribution: 0.75rem;
+
+  /* Shape */
+  --radius-card: 12px;
+  --radius-swatch: 6px;
+
+  /* Spacing steps */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  /* Elevation — soft shadow under floating panels for legibility against the globe */
+  --shadow-float: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
