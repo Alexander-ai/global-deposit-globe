@@ -308,6 +308,8 @@ def merge(df: pd.DataFrame):
             o = rows[i]
             if not s["depositType"] and o["depositType"]:
                 s["depositType"] = o["depositType"]
+            if not s.get("miningTechnique") and o.get("miningTechnique"):
+                s["miningTechnique"] = o["miningTechnique"]
             if not s["country"] and o["country"]:
                 s["country"] = o["country"]
             # Union co-commodities (survivor order first) so 'also' reflects all sources.

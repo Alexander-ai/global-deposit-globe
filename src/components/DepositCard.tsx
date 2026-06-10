@@ -81,6 +81,12 @@ export default function DepositCard({ deposit, onClose, onCountry }: Props) {
           <dt>Deposit type</dt>
           <dd className="mono">{deposit.depositType ?? 'Not recorded'}</dd>
         </div>
+        {deposit.miningTechnique && (
+          <div className="card__row">
+            <dt>Mining technique</dt>
+            <dd className="mono">{deposit.miningTechnique}</dd>
+          </div>
+        )}
         <div className="card__row">
           <dt>Status</dt>
           <dd>{STATUS_LABEL[deposit.status]}</dd>

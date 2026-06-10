@@ -128,3 +128,51 @@ def status_for(status_raw, source: str) -> str:
     if any(k in s for k in _PRODUCING):
         return "producer"
     return "deposit"
+
+
+# --- deposit type vs. mining technique ----------------------------------------
+# Several sources record the EXTRACTION METHOD ("Open-pit", "Underground") or a FACILITY
+# label ("Mine", "Concentrator", "Plant") in their deposit-type field. Those describe how a
+# site is worked, not its geology, so they're split out: methods go to a Mining-technique
+# field, bare facility words are dropped, and only the real geological type is kept.
+# NOTE: "Placer" is a genuine deposit type (an alluvial concentration) — NOT a method — so it
+# is deliberately absent here and stays in depositType.
+_METHOD_RULES = [
+    (re.compile(r"open[\s-]?pit|open[\s-]?cast|opencast", re.I), "Open-pit"),
+    (re.compile(r"\bunderground\b", re.I), "Underground"),
+    (re.compile(r"\bsurface\b", re.I), "Surface"),
+    (re.compile(r"\bstrip\b", re.I), "Strip"),
+    (re.compile(r"\bdredg", re.I), "Dredging"),
+    (re.compile(r"heap[\s-]?leach", re.I), "Heap leach"),
+    (re.compile(r"in[\s-]?situ|solution min", re.I), "In-situ leach"),
+    (re.compile(r"\bhydraulic\b", re.I), "Hydraulic"),
+]
+# Facility / operation words that aren't a deposit type and aren't a technique worth keeping.
+_FACILITY = re.compile(
+    r"\b(mine|mines|concentrator|concentrators|plant|plants|refinery|refineries|"
+    r"smelter|smelters|mill|mills|works|quarry|quarries)\b",
+    re.I,
+)
+_DT_SPLIT = re.compile(r"[,;/]|\band\b", re.I)
+
+
+def split_deposit_type(raw) -> tuple[str | None, str | None]:
+    """(deposit_type, mining_technique) from a raw deposit-type string. Method tokens move to
+    the technique; bare facility tokens are dropped; geological tokens are kept (in order)."""
+    if not isinstance(raw, str) or not raw.strip():
+        return None, None
+    kept, methods = [], []
+    for part in _DT_SPLIT.split(raw):
+        tok = part.strip()
+        if not tok:
+            continue
+        matched = [label for rx, label in _METHOD_RULES if rx.search(tok)]
+        if matched:
+            for m in matched:
+                if m not in methods:
+                    methods.append(m)
+        elif _FACILITY.search(tok):
+            continue  # facility/operation word — not a deposit type
+        else:
+            kept.append(tok)
+    return (", ".join(kept) or None, ", ".join(methods) or None)

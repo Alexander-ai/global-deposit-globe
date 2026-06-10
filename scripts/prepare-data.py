@@ -85,6 +85,13 @@ def main() -> None:
     df = df.drop_duplicates(subset=["lat", "lng", "name"], keep="first")
     dropped["exact duplicate (lat, lng, name)"] = before - len(df)
 
+    # Separate mining technique (open-pit, underground, …) and facility labels (mine, plant)
+    # out of the deposit-type field. Done before dedup so a record whose only "type" was a
+    # method can absorb a real geological type from a merged duplicate.
+    split = [normalize.split_deposit_type(dt) for dt in df["depositType"]]
+    df["depositType"] = [s[0] for s in split]
+    df["miningTechnique"] = [s[1] for s in split]
+
     # ---- Steps 2-3: classify commodity (needed by the fuzzy dedup's guard) ----
     df["commodity"] = [normalize.classify(c) for c in df["commodities"]]
 
@@ -160,10 +167,12 @@ def main() -> None:
         df["corrob"] = None
     if "magnitude" not in df.columns:
         df["magnitude"] = None
+    if "miningTechnique" not in df.columns:
+        df["miningTechnique"] = None
     records = []
-    cols = ["name", "lat", "lng", "commodity", "status", "depositType", "also", "source",
-            "country", "magnitude", "corrob"]
-    for name, lat, lng, commodity, status, dtype, also, source, country, mag, corrob in zip(
+    cols = ["name", "lat", "lng", "commodity", "status", "depositType", "miningTechnique",
+            "also", "source", "country", "magnitude", "corrob"]
+    for name, lat, lng, commodity, status, dtype, mining, also, source, country, mag, corrob in zip(
         *(df[c] for c in cols)
     ):
         rec = {
@@ -175,6 +184,8 @@ def main() -> None:
         }
         if isinstance(dtype, str) and dtype.strip():
             rec["depositType"] = dtype.strip()
+        if isinstance(mining, str) and mining.strip():
+            rec["miningTechnique"] = mining.strip()
         if also:
             rec["also"] = also
         if isinstance(country, str) and country.strip():

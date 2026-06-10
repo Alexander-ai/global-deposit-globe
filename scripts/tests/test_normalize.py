@@ -123,3 +123,40 @@ class TestStatusFor:
     )
     def test_generic_source_keywords(self, raw, expect):
         assert normalize.status_for(raw, "bc_minfile") == expect
+
+
+class TestSplitDepositType:
+    @pytest.mark.parametrize(
+        "raw, dtype, technique",
+        [
+            # Methods/facilities move out; geological type stays.
+            ("Open-pit", None, "Open-pit"),
+            ("Underground", None, "Underground"),
+            ("Open-pit, concentrator", None, "Open-pit"),
+            ("Open-pit, underground, concentrator", None, "Open-pit, Underground"),
+            ("Mine", None, None),
+            ("Mines and Quarries", None, None),
+            ("Mine, Plant", None, None),
+            ("Porphyry copper, open pit", "Porphyry copper", "Open-pit"),
+            ("Vein, underground", "Vein", "Underground"),
+            # Placer is a real deposit type, not a method — keep it, no technique.
+            ("Placer", "Placer", None),
+            ("Stream Placer", "Stream Placer", None),
+            ("Surficial placers", "Surficial placers", None),
+            # Pure geological types pass through untouched.
+            ("Volcanogenic Massive Sulfide", "Volcanogenic Massive Sulfide", None),
+            ("Skarn", "Skarn", None),
+            # Empty / missing.
+            ("", None, None),
+            (None, None, None),
+        ],
+    )
+    def test_split(self, raw, dtype, technique):
+        assert normalize.split_deposit_type(raw) == (dtype, technique)
+
+    def test_mineralization_not_mistaken_for_mine(self):
+        # "Mineralization" contains "mine" but must NOT be dropped as a facility word.
+        assert normalize.split_deposit_type("Disseminated mineralization") == (
+            "Disseminated mineralization",
+            None,
+        )

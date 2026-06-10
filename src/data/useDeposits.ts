@@ -14,7 +14,10 @@ export interface Deposit {
   source: string
   /** Country (as the source recorded it) — powers the country filter. */
   country?: string
+  /** Geological deposit type (mining method/facility labels are split out of this). */
   depositType?: string
+  /** How the site is worked — open-pit, underground, etc. (distinct from depositType). */
+  miningTechnique?: string
   /** Other commodities recorded at the site (primary excluded). */
   also?: string[]
   /** Magnitude 1.2–3 (production size / tonnage derived) — drives dot size. */
